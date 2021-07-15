@@ -8,6 +8,9 @@ abstract class GameSocket {
     private val sessionPlayerMap = ConcurrentHashMap<WsContext, Player>()
     private val playerSessionMap = ConcurrentHashMap<Player, WsContext>()
 
+    private val WsContext.player: Player
+        get() = sessionPlayerMap[this] ?: throw IllegalStateException("session is not mapped to a player")
+
     val endpoint: (WsHandler) -> Unit = { ws ->
         ws.onConnect(::onConnect)
         ws.onClose(::onClose)
@@ -47,7 +50,8 @@ abstract class GameSocket {
     private fun onMessage(ctx: WsMessageContext) {
         val data = JSONObject(ctx.message())
         when (data["type"]) {
-            "gameStarted" -> onGameStarted(GameStartedEvent())
+            "startGame" -> onStartGame(GameStartedEvent())
+            "moveEvent" -> onPlayerMove(ctx.player, ctx.message<MoveEvent>())
             else -> println("event: ${data["type"]} not implemented yet")
         }
     }
@@ -57,11 +61,13 @@ abstract class GameSocket {
         onPlayersChanged(event)
     }
 
-    abstract fun onGameStarted(event: GameStartedEvent)
+    abstract fun onStartGame(event: GameStartedEvent)
 
     abstract fun onPlayersChanged(event: PlayersUpdatedEvent)
 
     abstract fun onGameReadyStateChanged(event: GameReadyStateChangedEvent)
+
+    abstract fun onPlayerMove(player: Player, moveEvent: MoveEvent)
 
     companion object {
         const val playerParam = ":player-name"
