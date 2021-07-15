@@ -9,7 +9,7 @@ object Game : GameSocket() {
         onGameReadyStateChanged(GameReadyStateChangedEvent(value))
     }
 
-    override fun onGameStarted(event: GameStartedEvent) {
+    override fun onStartGame(event: GameStartedEvent) {
         players.forEach { it.send(event) }
     }
 
@@ -19,5 +19,9 @@ object Game : GameSocket() {
 
     override fun onGameReadyStateChanged(event: GameReadyStateChangedEvent) {
         players.forEach { it.send(event) }
+    }
+
+    override fun onPlayerMove(player: Player, moveEvent: MoveEvent) {
+        println("${player.name} moves to station ${moveEvent.move.targetStation} by ${moveEvent.move.ticket}")
     }
 }
