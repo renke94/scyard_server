@@ -7,13 +7,13 @@ abstract class GameSocket : PlayerSocket() {
     override fun onMessage(ctx: WsMessageContext) {
         val data = JSONObject(ctx.message())
         when (data["type"]) {
-            "startGame" -> onStartGame(ctx.player, GameStartedEvent())
+            "hostStartedTheGame" -> onStartGame(ctx.player, HostStartedTheGameEvent())
             "moveEvent" -> onPlayerMove(ctx.player, ctx.message<MoveEvent>())
             else -> println("event: ${data["type"]} not implemented yet")
         }
     }
 
-    abstract fun onStartGame(player: Player, event: GameStartedEvent)
+    abstract fun onStartGame(player: Player, hostStartedTheGameEvent: HostStartedTheGameEvent)
 
     abstract fun onGameReadyStateChanged(event: GameReadyStateChangedEvent)
 

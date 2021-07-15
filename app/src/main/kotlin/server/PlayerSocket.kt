@@ -50,7 +50,7 @@ abstract class PlayerSocket {
         val player = sessionPlayerMap.remove(ctx)
         playerSessionMap.remove(player)
         updatePlayers()
-        if (ctx.player == host) {
+        if (player == host) {
             host = players.randomOrNull()
         }
     }
