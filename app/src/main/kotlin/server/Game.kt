@@ -1,20 +1,26 @@
 package server
 
-class Player(val name: String)
-
 object Game : GameSocket() {
+    private var gameStarted: Boolean = false
+
     private var isReady: Boolean = false
     set(value) {
-        field = value
-        onGameReadyStateChanged(GameReadyStateChangedEvent(value))
+        if (value != field) {
+            field = value
+            onGameReadyStateChanged(GameReadyStateChangedEvent(field))
+        }
     }
 
-    override fun onStartGame(event: GameStartedEvent) {
+    override fun onPlayersUpdate(event: PlayersUpdatedEvent) {
         players.forEach { it.send(event) }
+        isReady = players.size > 3
     }
 
-    override fun onPlayersChanged(event: PlayersUpdatedEvent) {
-        players.forEach { it.send(event) }
+    override fun onStartGame(player: Player, event: GameStartedEvent) {
+        if (isReady && !gameStarted && player == host) {
+            gameStarted = true
+            players.forEach { it.send(event) }
+        }
     }
 
     override fun onGameReadyStateChanged(event: GameReadyStateChangedEvent) {
