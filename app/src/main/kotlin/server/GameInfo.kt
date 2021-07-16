@@ -4,7 +4,7 @@ import server.Game.color
 import server.Game.station
 import server.Game.tickets
 
-class PlayerInfo(val player: Player) {
+open class PlayerInfo(val player: Player) {
     val tickets = player.tickets
     val station = player.station.number
     val color   = player.color.color
@@ -15,4 +15,8 @@ class GameInfo(game: Game) {
 
     val misterX: Player = game.misterX
     val misterXLastSeen: String = game.misterXLastSeen
+}
+
+class SelfInfo(player: Player) : PlayerInfo(player) {
+    val reachableStations = player.station.reachableStations()
 }

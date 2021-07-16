@@ -31,10 +31,6 @@ object Game : GameSocket() {
         players.forEach { it.send(event) }
     }
 
-    override fun onPlayerMove(player: Player, moveEvent: MoveEvent) {
-        println("${player.name} moves to station ${moveEvent.move.targetStation} by ${moveEvent.move.ticket}")
-    }
-
     /**
      * Game data section - only access, when game is started!!
      */
@@ -79,8 +75,45 @@ object Game : GameSocket() {
 
 
         // notify players that the game has been initialized
-        val event = GameStartedEvent(GameInfo(this))
-        players.forEach { it.send(event) }
-        misterX.send(UpdateMisterXEvent(PlayerInfo(misterX)))
+        detectives.forEach { player ->
+            broadcast(UpdatePlayerEvent(PlayerInfo(player)))
+            player.send(UpdateSelfEvent(SelfInfo(player)))
+        }
+
+        updateMisterX()
+    }
+
+    private fun updateMisterX() {
+        misterX.send(UpdatePlayerEvent(PlayerInfo(misterX)))
+        misterX.send(UpdateSelfEvent(SelfInfo(misterX)))
+    }
+
+    private fun detectivesSend(event: Event) {
+        detectives.forEach { it.send(event) }
+    }
+
+    private fun broadcast(event: Event) {
+        detectives.forEach { it.send(event) }
+        misterX.send(event)
+    }
+
+    override fun onPlayerMove(player: Player, moveEvent: MoveEvent) {
+        println("Player ${player.name} moves to station ${moveEvent.move.targetStation} by ${moveEvent.move.ticket}")
+        val targetStation: Station = London.stations[moveEvent.move.targetStation]
+        val ticket: Ticket = Ticket.valueOf(moveEvent.move.ticket.toUpperCase())
+
+        println("log 1")
+
+        if (player.station.canReach(targetStation, ticket)) {
+            println("log 2")
+            player.station = targetStation
+
+            player.send(UpdateSelfEvent(SelfInfo(player)))
+            if (player != misterX) {
+                broadcast(UpdatePlayerEvent(PlayerInfo(player)))
+            } else {
+                player.send(UpdatePlayerEvent(PlayerInfo(player)))
+            }
+        }
     }
 }

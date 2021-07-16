@@ -15,6 +15,7 @@ fun main() {
         config.enableCorsForAllOrigins()
         config.defaultContentType = "application/json"
         config.wsFactoryConfig { it.policy.idleTimeout = 3*60*60*1000 }
+        config.enableDevLogging()
     }
 
     app.ws(playerParam, Game.endpoint)

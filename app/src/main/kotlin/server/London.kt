@@ -11,6 +11,10 @@ class Station(val number: Int) {
     )
 
     fun canReach(station: Station, ticket: Ticket) = neighbors[ticket]?.contains(station) ?: false
+
+    fun reachableStations(): Map<Ticket, List<Int>> = neighbors.entries.associate { (k, v) -> k to v.map { it.number } }
+
+//    fun rs(ticket: Tickets): List<Int> =
 }
 
 object London {
@@ -33,9 +37,18 @@ object London {
         val train : JSONArray = json.getJSONArray("train")
         val black : JSONArray = json.getJSONArray("black")
 
-        taxi.map  { (it as JSONArray) }.forEach { connect(Ticket.TAXI,  it.getInt(0), it.getInt(1)) }
-        bus.map   { (it as JSONArray) }.forEach { connect(Ticket.BUS,   it.getInt(0), it.getInt(1)) }
-        train.map { (it as JSONArray) }.forEach { connect(Ticket.TRAIN, it.getInt(0), it.getInt(1)) }
+        taxi.map  { (it as JSONArray) }.forEach {
+            connect(Ticket.TAXI,  it.getInt(0), it.getInt(1))
+            connect(Ticket.BLACK,  it.getInt(0), it.getInt(1))
+        }
+        bus.map   { (it as JSONArray) }.forEach {
+            connect(Ticket.BUS,   it.getInt(0), it.getInt(1))
+            connect(Ticket.BLACK,   it.getInt(0), it.getInt(1))
+        }
+        train.map { (it as JSONArray) }.forEach {
+            connect(Ticket.TRAIN, it.getInt(0), it.getInt(1))
+            connect(Ticket.BLACK, it.getInt(0), it.getInt(1))
+        }
         black.map { (it as JSONArray) }.forEach { connect(Ticket.BLACK, it.getInt(0), it.getInt(1)) }
     }
 }
