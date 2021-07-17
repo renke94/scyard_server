@@ -9,9 +9,12 @@ abstract class GameSocket : PlayerSocket() {
         when (data["type"]) {
             "hostStartedTheGame" -> onStartGame(ctx.player, HostStartedTheGameEvent())
             "moveEvent" -> onPlayerMove(ctx.player, ctx.message<MoveEvent>())
+            "messageEvent" -> onMessage(ctx.player, ctx.message<MessageEvent>().apply { sender = ctx.player.name })
             else -> println("event: ${data["type"]} not implemented yet")
         }
     }
+
+    abstract fun onMessage(player: Player, messageEvent: MessageEvent)
 
     abstract fun onStartGame(player: Player, hostStartedTheGameEvent: HostStartedTheGameEvent)
 

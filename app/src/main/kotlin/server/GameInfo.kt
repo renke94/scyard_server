@@ -18,5 +18,6 @@ class GameInfo(game: Game) {
 }
 
 class SelfInfo(player: Player) : PlayerInfo(player) {
-    val reachableStations = player.station.reachableStations()
+    val reachableStations  = player.station.reachableStations()
+    val isMisterX: Boolean = player == Game.misterX
 }

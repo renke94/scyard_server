@@ -12,7 +12,9 @@ class Station(val number: Int) {
 
     fun canReach(station: Station, ticket: Ticket) = neighbors[ticket]?.contains(station) ?: false
 
-    fun reachableStations(): Map<Ticket, List<Int>> = neighbors.entries.associate { (k, v) -> k to v.map { it.number } }
+    fun reachableStations(): Map<Ticket, List<Int>> = neighbors.entries.associate {
+            (k, v) -> k to v.map { it.number }
+    }
 
 //    fun rs(ticket: Tickets): List<Int> =
 }
