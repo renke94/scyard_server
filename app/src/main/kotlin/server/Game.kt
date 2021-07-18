@@ -52,17 +52,18 @@ object Game : GameSocket() {
     var misterXLastSeen: String = "Mister X has not been seen yet"
 
     private fun initializeGame() {
+        // Choose Mister X randomly
         players.shuffled().also {
             misterX    = it.first()
             detectives = it.drop(1)
         }
 
+        // Assign tickets to each player
         detectives.forEach { playerTickets[it] = getDetectiveStartingTickets() }
         playerTickets[misterX] = getMisterXStartingTickets()
 
+        // Assign each players station
         val randomPositions = London.getRandomStartPositions(players.size)
-
-        println(randomPositions)
 
         misterX.station = London.stations[randomPositions.first()]
         println("Mister X station: " + misterX.station.number)
@@ -70,11 +71,14 @@ object Game : GameSocket() {
             detectives[i].station = London.stations[number]
         }
 
+        rounds.add(Round())
+
+        // TODO(Assign colors before game initialization)
         misterX.color = colors.last()
         detectives.forEachIndexed { i, d -> d.color = colors[i] }
 
 
-        // notify players that the game has been initialized
+        // Notify players that the game has been initialized
         detectives.forEach { player ->
             broadcast(UpdatePlayerEvent(PlayerInfo(player)))
             player.send(UpdateSelfEvent(SelfInfo(player)))
@@ -103,8 +107,6 @@ object Game : GameSocket() {
         broadcast(event)
     }
 
-    val occupiedStations: List<Station> get() = detectives.map { it.station }
-
     override fun onMessage(player: Player, messageEvent: MessageEvent) {
         if (messageEvent.message.startsWith("!")) {
             handleDevCommand(player, messageEvent)
@@ -120,15 +122,6 @@ object Game : GameSocket() {
 
         fun sendMessage(message: String) {
             player.send(MessageEvent(message).apply { sender = "Server" })
-        }
-
-        fun updatePlayer() {
-            player.send(UpdateSelfEvent(SelfInfo(player)))
-            if (player != misterX) {
-                broadcast(UpdatePlayerEvent(PlayerInfo(player)))
-            } else {
-                player.send(UpdatePlayerEvent(PlayerInfo(player)))
-            }
         }
 
         val command: List<String> = messageEvent.message.split(Regex(" +"))
@@ -152,7 +145,7 @@ object Game : GameSocket() {
         when(command[0]) {
             "!move" -> if(gameStarted) command[1].toIntOrNull()?.let { stationNr ->
                 player.station = London.stations[stationNr]
-                updatePlayer()
+                updatePlayer(player)
                 sendMessage("(cheat) move to station ${stationNr}")
             } else sendMessage("Game not started")
 
@@ -173,7 +166,7 @@ object Game : GameSocket() {
                     }
                     playerTickets[player] = tickets
                     println(player.tickets)
-                    updatePlayer()
+                    updatePlayer(player)
                 } ?: sendMessage("amount must be an integer")
             }
 
@@ -183,23 +176,93 @@ object Game : GameSocket() {
         }
     }
 
-    override fun onPlayerMove(player: Player, moveEvent: MoveEvent) {
-        broadcastMessage("Player ${player.name} moves to station ${moveEvent.move.targetStation} by ${moveEvent.move.ticket}")
-        val targetStation: Station = London.stations[moveEvent.move.targetStation]
-        val ticket: Ticket = Ticket.valueOf(moveEvent.move.ticket.toUpperCase())
-
-        println("log 1")
-
-        if (player.station.canReach(targetStation, ticket)) {
-            println("log 2")
-            player.station = targetStation
-
-            player.send(UpdateSelfEvent(SelfInfo(player)))
-            if (player != misterX) {
-                broadcast(UpdatePlayerEvent(PlayerInfo(player)))
-            } else {
-                player.send(UpdatePlayerEvent(PlayerInfo(player)))
-            }
+    private fun updatePlayer(player: Player) {
+        player.send(UpdateSelfEvent(SelfInfo(player)))
+        if (player != misterX) {
+            broadcast(UpdatePlayerEvent(PlayerInfo(player)))
+        } else {
+            player.send(UpdatePlayerEvent(PlayerInfo(player)))
         }
     }
+
+    override fun onPlayerMove(player: Player, moveEvent: MoveEvent) {
+        currentRound.handleMove(player, moveEvent)
+        updatePlayer(player)
+    }
+
+    private val rounds: MutableList<Round> = mutableListOf()
+    private val currentRound: Round get() = rounds.last()
+
+    private val revealingStations: Set<Int> = setOf(3, 8, 13, 18, 24)
+
+    private fun onMisterXWasSeen() {
+        detectivesSend(UpdatePlayerEvent(PlayerInfo(misterX)))
+    }
+
+    class Round {
+        class IllegalMoveException(msg: String = "") : Exception(msg)
+        class IllegalMoveEvent(val msg: String = "") : Event("illegalMove")
+
+        class MisterXCaughtEvent(val player: Player, val station: Station) : Event("misterXCaught")
+        class NextRoundEvent(val number: Int) : Event("nextRound")
+        object YourTurnEvent : Event("yourTurn")
+
+        private fun onMisterXCaught(player: Player, station: Station) {
+            broadcast(MisterXCaughtEvent(player, station))
+        }
+
+        private fun onRoundCompleted() {
+            rounds.add(Round())
+            broadcast(NextRoundEvent(rounds.size))
+            misterX.send(YourTurnEvent)
+        }
+
+        private val moves = ConcurrentHashMap((detectives + misterX).associateWith { -1 })
+
+        fun handleMove(player: Player, moveEvent: MoveEvent) {
+            try {
+                handleMove(player, moveEvent.move)
+                broadcastMessage("Player ${player.name} moves to station ${moveEvent.move.targetStation} by ${moveEvent.move.ticket}")
+            } catch (ex: IllegalMoveException) {
+                println(ex.message)
+                player.send(MessageEvent(ex.message!!).apply { sender = "Server to you" })
+            }
+        }
+
+        private fun handleMove(player: Player, move: Move) {
+            if (!moves.containsKey(player)) throw IllegalMoveException("Illegal Player")
+            if (moves[player] != -1) throw IllegalMoveException("Player already moved")
+
+            val target: Station = London.stations[move.targetStation]
+            val ticket: Ticket  = Ticket.valueOf(move.ticket.toUpperCase())
+
+            if (player.tickets[ticket]!! <= 0) throw IllegalMoveException("Not enough tickets")
+            if (!player.station.canReach(target, ticket)) throw IllegalMoveException("Station not reachable")
+
+            if (player == misterX) { // Mister X is moving
+                if (detectives.any { it.station == target }) throw IllegalMoveException("Station already occupied")
+
+                player.station = target
+                moves[player]  = target.number
+                player.tickets[ticket] = player.tickets[ticket]!! - 1
+                if (rounds.size in revealingStations) onMisterXWasSeen()
+                detectivesSend(YourTurnEvent)
+            } else { // Detective is moving
+                if (moves[misterX] == -1) throw IllegalMoveException("MisterX has to move first")
+                if (detectives.any { it.station == target }) throw IllegalMoveException("Station already occupied")
+
+                player.station = target
+                moves[player]  = target.number
+                player.tickets[ticket] = player.tickets[ticket]!! - 1
+                misterX.tickets[ticket] = misterX.tickets[ticket]!! + 1
+
+                if (target == misterX.station) onMisterXCaught(player, target)
+            }
+
+            if (isRoundCompleted()) onRoundCompleted()
+        }
+
+        private fun isRoundCompleted(): Boolean = !moves.values.any { it == -1 }
+    }
 }
+
