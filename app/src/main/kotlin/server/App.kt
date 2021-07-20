@@ -5,7 +5,7 @@ package server
 
 import io.javalin.Javalin
 import io.javalin.core.validation.JavalinValidation
-import server.PlayerSocket.Companion.playerParam
+import server.game.socket.PlayerSocket.Companion.playerParam
 import java.util.*
 
 fun main() {
