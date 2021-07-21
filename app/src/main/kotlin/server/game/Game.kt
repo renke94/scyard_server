@@ -89,9 +89,9 @@ object Game : GameSocket() {
     override fun onClientIsReady(player: Player) {
         player.updateSelfInfo(player.info)
         if (player != misterX) {
-            player.updatePlayerInfo(detectives.associate { it.uuid.toString() to it.info }, "Game initialized")
+            player.updatePlayerInfo(detectives.map { it.info }, "Game initialized")
         } else {
-            player.updatePlayerInfo(playerInfos.values.associateBy { it.uuid.toString() }, "Game initialized")
+            player.updatePlayerInfo(playerInfos.values.toList(), "Game initialized")
         }
     }
 
@@ -105,10 +105,11 @@ object Game : GameSocket() {
 
         if (player != misterX) {
             val message = "${player.name} moved to station ${move.targetStation} by ${move.ticket}"
-            players.updatePlayerInfo(detectives.associate { it.uuid.toString() to it.info }, message)
+            players.updatePlayerInfo(detectives.map { it.info }, message)
+            misterX.updateSelfInfo(misterX.info)
         } else {
             val message = "Mister X moved by ${move.ticket}"
-            player.updatePlayerInfo(playerInfos.values.associateBy { it.uuid.toString() }, message)
+            player.updatePlayerInfo(playerInfos.values.toList(), message)
             sendMisterXMovedEvent(move.ticket)
         }
     }
@@ -128,7 +129,6 @@ object Game : GameSocket() {
         fun handleMove(player: Player, move: Move) {
             try {
                 handle(player, move)
-                broadcastMessage(Message("Player ${player.name} moves to station ${move.targetStation} by ${move.ticket}", "Server"))
             } catch (ex: IllegalMoveException) {
                 println(ex.message)
                 player.sendIllegalMoveEvent(move, ex.message!!)
@@ -163,6 +163,7 @@ object Game : GameSocket() {
                     "train" -> player.tickets.train--
                     "black" -> player.tickets.black--
                 }
+                broadcastMessage(Message("Mister X moved by ${move.ticket}", "Server"))
                 if (rounds.size in revealingStations) sendMisterXWasSeenEvent(misterX.info)
                 detectives.sendYourTurnEvent()
             } else { // Detective is moving
@@ -177,6 +178,9 @@ object Game : GameSocket() {
                     "train" -> { player.tickets.train--;  misterX.tickets.train++; }
                     "black" -> { player.tickets.black--;  misterX.tickets.black++; }
                 }
+                broadcastMessage(Message(
+                    "Player ${player.name} moved to station ${move.targetStation} by ${move.ticket}", "Server"
+                ))
                 if (target == misterX.station) sendMisterXWasCaughtEvent(player.info)
             }
 

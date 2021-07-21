@@ -23,14 +23,18 @@ object GameStartedEvent
 object StartGameEvent
     : Event("StartGameEvent", "Host requested to start the game")
 
-class UpdatePlayerInfoEvent(val data: Map<String, PlayerInfo>, message: String)
+class UpdatePlayerInfoEvent(val data: List<PlayerInfo>, message: String)
     : Event("UpdatePlayerInfoEvent", message)
 
 class UpdateSelfInfoEvent(val data: PlayerInfo)
     : Event("UpdateSelfInfoEvent", "Your Information has been updated")
 
 class MessageEvent(val data: Message)
-    : Event("MessageEvent", data.text)
+    : Event("MessageEvent", data.text) {
+        init {
+            println("Message Event")
+        }
+    }
 
 class MoveEvent(val data: Move)
     : Event("MoveEvent")

@@ -2,7 +2,6 @@ package server.game.socket
 
 import io.javalin.websocket.WsMessageContext
 import server.game.*
-import java.util.*
 
 abstract class GameSocket : LobbySocket() {
     override fun onEvent(type: String, player: Player, ctx: WsMessageContext) {
@@ -21,11 +20,11 @@ abstract class GameSocket : LobbySocket() {
         this.send(UpdateSelfInfoEvent(playerInfo))
     }
 
-    protected fun Player.updatePlayerInfo(playerInfos: Map<String, PlayerInfo>, message: String) {
+    protected fun Player.updatePlayerInfo(playerInfos: List<PlayerInfo>, message: String) {
         this.send(UpdatePlayerInfoEvent(playerInfos, message))
     }
 
-    protected fun Collection<Player>.updatePlayerInfo(playerInfos: Map<String, PlayerInfo>, message: String) {
+    protected fun Collection<Player>.updatePlayerInfo(playerInfos: List<PlayerInfo>, message: String) {
         val event = UpdatePlayerInfoEvent(playerInfos, message)
         this.forEach { it.send(event) }
     }
@@ -51,6 +50,7 @@ abstract class GameSocket : LobbySocket() {
     }
 
     protected fun sendMisterXWasSeenEvent(misterXInfo: PlayerInfo) {
+        println("Mister X was seen on station ${misterXInfo.station}")
         broadcast(MisterXWasSeenEvent(misterXInfo))
     }
 
